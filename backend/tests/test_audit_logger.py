@@ -1,3 +1,5 @@
+import sqlite3
+from datetime import datetime, timezone
 
 from app.models.security import (
     AgentToolRequest,
@@ -67,3 +69,127 @@ def test_blocked_event_is_recorded_as_not_executed(tmp_path):
     assert len(events) == 1
     assert events[0]["decision"] == "BLOCK"
     assert events[0]["executed"] == 0
+
+def test_valid_hash_chain_passes_integrity_check(tmp_path):
+
+    database = tmp_path / "test_chain.db"
+    logger = AuditLogger(db_path=database)
+
+    request = AgentToolRequest(
+        agent_id="demo-agent",
+        tool_name="calculator",
+        operation="add",
+    )
+
+    decision = SecurityDecision(
+        action=SecurityAction.ALLOW,
+        reason="Request complies with security policy.",
+        request=request,
+    )
+
+    logger.log_event(request, decision, True)
+    logger.log_event(request, decision, True)
+
+    result = logger.verify_integrity()
+
+    assert result["valid"] is True
+    assert result["checked_events"] == 2
+
+    events = logger.get_events(limit=10)
+
+    # get_events returns newest events first.
+    newest_event = events[0]
+    oldest_event = events[1]
+
+    assert oldest_event["previous_hash"] == "GENESIS"
+    assert newest_event["previous_hash"] == oldest_event["event_hash"]
+
+
+def test_tampered_event_fails_integrity_check(tmp_path):
+
+    database = tmp_path / "test_tampered.db"
+    logger = AuditLogger(db_path=database)
+
+    request = AgentToolRequest(
+        agent_id="demo-agent",
+        tool_name="calculator",
+        operation="add",
+    )
+
+    decision = SecurityDecision(
+        action=SecurityAction.ALLOW,
+        reason="Request complies with security policy.",
+        request=request,
+    )
+
+    event_id = logger.log_event(request, decision, True)
+
+    # Simulate an attacker modifying a database record.
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            """
+            UPDATE security_events
+            SET reason = ?
+            WHERE event_id = ?
+            """,
+            ("This record has been tampered with.", event_id),
+        )
+
+    result = logger.verify_integrity()
+
+    assert result["valid"] is False
+    assert result["failed_event_id"] == event_id
+    assert result["reason"] == "Event data has been modified."
+
+def test_legacy_events_are_reported_separately(tmp_path):
+
+    database = tmp_path / "test_legacy.db"
+    logger = AuditLogger(db_path=database)
+
+    # Simulate an event created before hash chaining existed.
+    with sqlite3.connect(database) as connection:
+        connection.execute("""
+            INSERT INTO security_events (
+                event_id,
+                timestamp,
+                agent_id,
+                tool_name,
+                operation,
+                resource,
+                decision,
+                reason,
+                executed
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            "legacy-event-001",
+            datetime.now(timezone.utc).isoformat(),
+            "demo-agent",
+            "calculator",
+            "add",
+            None,
+            "ALLOW",
+            "Legacy event without a hash.",
+            1,
+        ))
+
+    request = AgentToolRequest(
+        agent_id="demo-agent",
+        tool_name="calculator",
+        operation="add",
+    )
+
+    decision = SecurityDecision(
+        action=SecurityAction.ALLOW,
+        reason="Request complies with security policy.",
+        request=request,
+    )
+
+    logger.log_event(request, decision, True)
+
+    result = logger.verify_integrity()
+
+    assert result["valid"] is True
+    assert result["checked_events"] == 1
+    assert result["legacy_events"] == 1
+    assert result["legacy_events_verified"] is False
