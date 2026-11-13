@@ -122,3 +122,9 @@ async def get_security_events(
         "total": len(events),
         "events": events,
     }
+@app.get("/security/verify")
+async def verify_security_integrity():
+
+    integrity_report = audit_logger.verify_integrity()
+
+    return integrity_report
