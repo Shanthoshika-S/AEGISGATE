@@ -89,7 +89,10 @@ class AuditLogger:
         event_id = str(uuid.uuid4())
         timestamp = datetime.now(timezone.utc).isoformat()
 
-        with sqlite3.connect(self.db_path) as connection:
+        with sqlite3.connect(self.db_path, timeout=10) as connection:
+
+            # Acquire the write lock before reading the previous hash.
+            connection.execute("BEGIN IMMEDIATE")
 
             previous_event = connection.execute("""
                 SELECT event_hash

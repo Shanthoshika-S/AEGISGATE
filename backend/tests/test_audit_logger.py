@@ -1,4 +1,6 @@
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 from datetime import datetime, timezone
 
 from app.models.security import (
@@ -193,3 +195,63 @@ def test_legacy_events_are_reported_separately(tmp_path):
     assert result["checked_events"] == 1
     assert result["legacy_events"] == 1
     assert result["legacy_events_verified"] is False
+
+def test_concurrent_events_preserve_hash_chain(tmp_path):
+
+    database = tmp_path / "test_concurrent.db"
+    logger = AuditLogger(db_path=database)
+
+    number_of_events = 8
+    number_of_workers = 8
+
+    barrier = Barrier(number_of_workers)
+
+    request = AgentToolRequest(
+        agent_id="demo-agent",
+        tool_name="calculator",
+        operation="add",
+    )
+
+    decision = SecurityDecision(
+        action=SecurityAction.ALLOW,
+        reason="Concurrent security test.",
+        request=request,
+    )
+
+    def create_event():
+
+        # Make all worker threads start logging together.
+        barrier.wait()
+
+        return logger.log_event(
+            request=request,
+            decision=decision,
+            executed=True,
+        )
+
+    with ThreadPoolExecutor(max_workers=number_of_workers) as executor:
+
+        futures = [
+            executor.submit(create_event)
+            for _ in range(number_of_events)
+        ]
+
+        event_ids = [
+            future.result()
+            for future in futures
+        ]
+
+    # Every event should have a unique ID.
+    assert len(set(event_ids)) == number_of_events
+
+    # Every event should have been saved.
+    events = logger.get_events(limit=number_of_events)
+
+    assert len(events) == number_of_events
+
+    # The complete hash chain must remain valid.
+    result = logger.verify_integrity()
+
+    assert result["valid"] is True
+    assert result["checked_events"] == number_of_events
+    assert result["failed_event_id"] is None
