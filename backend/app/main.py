@@ -11,6 +11,7 @@ from app.models.security import (
 )
 from app.services.policy_engine import PolicyEngine
 from app.services.audit_logger import AuditLogger
+from app.services.behavior_analyzer import BehaviorAnalyzer
 from app.tools.simulator import ToolSimulator
 
 
@@ -24,7 +25,7 @@ app = FastAPI(
 policy_engine = PolicyEngine()
 tool_simulator = ToolSimulator()
 audit_logger = AuditLogger()
-
+behavior_analyzer = BehaviorAnalyzer()
 
 @app.get("/")
 async def root():
@@ -128,3 +129,14 @@ async def verify_security_integrity():
     integrity_report = audit_logger.verify_integrity()
 
     return integrity_report
+
+@app.get("/security/anomalies")
+async def get_security_anomalies():
+
+    # Retrieve the latest 500 security events.
+    events = audit_logger.get_events(limit=500)
+
+    # Analyze recent agent behavior.
+    anomaly_report = behavior_analyzer.analyze(events)
+
+    return anomaly_report
