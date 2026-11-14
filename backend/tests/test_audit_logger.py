@@ -255,3 +255,60 @@ def test_concurrent_events_preserve_hash_chain(tmp_path):
     assert result["valid"] is True
     assert result["checked_events"] == number_of_events
     assert result["failed_event_id"] is None
+
+def test_multiple_logger_instances_preserve_hash_chain(tmp_path):
+
+    database = tmp_path / "multi_instance.db"
+
+    number_of_instances = 8
+
+    loggers = [
+        AuditLogger(db_path=database)
+        for _ in range(number_of_instances)
+    ]
+
+    request = AgentToolRequest(
+        agent_id="demo-agent",
+        tool_name="calculator",
+        operation="add",
+    )
+
+    decision = SecurityDecision(
+        action=SecurityAction.ALLOW,
+        reason="Multi-instance concurrency test.",
+        request=request,
+    )
+
+    def create_event(logger):
+
+        return logger.log_event(
+            request=request,
+            decision=decision,
+            executed=True,
+        )
+
+    with ThreadPoolExecutor(max_workers=number_of_instances) as executor:
+
+        futures = [
+            executor.submit(create_event, logger)
+            for logger in loggers
+        ]
+
+        event_ids = [
+            future.result()
+            for future in futures
+        ]
+
+    assert len(set(event_ids)) == number_of_instances
+
+    verifier = AuditLogger(db_path=database)
+
+    events = verifier.get_events(limit=number_of_instances)
+
+    assert len(events) == number_of_instances
+
+    result = verifier.verify_integrity()
+
+    assert result["valid"] is True
+    assert result["checked_events"] == number_of_instances
+    assert result["failed_event_id"] is None
