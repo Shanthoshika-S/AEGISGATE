@@ -13,12 +13,21 @@ from app.services.policy_engine import PolicyEngine
 from app.services.audit_logger import AuditLogger
 from app.services.behavior_analyzer import BehaviorAnalyzer
 from app.tools.simulator import ToolSimulator
-
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title="AEGISGATE",
     description="Runtime Security Firewall and Digital Forensics Platform for AI Agents",
     version="0.4.0"
+)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Initialize security components.

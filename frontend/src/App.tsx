@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   Shield,
@@ -59,6 +59,10 @@ function App() {
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [activeSection, setActiveSection] = useState("Overview");
+  const [eventSearch, setEventSearch] = useState("");
+  const [decisionFilter, setDecisionFilter] = useState("ALL");
+  const [selectedEvent, setSelectedEvent] = useState<SecurityEvent | null>(null);
+  const detailPanelRef = useRef<HTMLElement | null>(null);
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
@@ -91,6 +95,16 @@ function App() {
   useEffect(() => {
     void loadDashboard();
   }, [loadDashboard]);
+
+  useEffect(() => {
+  if (selectedEvent) {
+    detailPanelRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
+}, [selectedEvent]);
+
 
   const blockedCount = events.filter(
     (event) => event.decision === "BLOCK"
@@ -147,9 +161,99 @@ function App() {
   return Array.from(agents.values()).sort((a, b) => b.total - a.total);
 }, [events]);
 
+  const toolStats = useMemo(() => {
+    const tools = new Map<
+      string,
+      {
+        toolName: string;
+        total: number;
+        allowed: number;
+        blocked: number;
+        approval: number;
+        executed: number;
+        operations: Set<string>;
+        lastSeen: string;
+      }
+    >();
+
+    events.forEach((event) => {
+      const existing = tools.get(event.tool_name);
+
+      if (existing) {
+        existing.total += 1;
+        existing.operations.add(event.operation);
+
+        if (event.decision === "ALLOW") existing.allowed += 1;
+        if (event.decision === "BLOCK") existing.blocked += 1;
+        if (event.decision === "REQUIRE_APPROVAL") existing.approval += 1;
+        if (event.executed) existing.executed += 1;
+
+        if (
+          new Date(event.timestamp).getTime() >
+          new Date(existing.lastSeen).getTime()
+        ) {
+          existing.lastSeen = event.timestamp;
+        }
+      } else {
+        tools.set(event.tool_name, {
+          toolName: event.tool_name,
+          total: 1,
+          allowed: event.decision === "ALLOW" ? 1 : 0,
+          blocked: event.decision === "BLOCK" ? 1 : 0,
+          approval: event.decision === "REQUIRE_APPROVAL" ? 1 : 0,
+          executed: event.executed ? 1 : 0,
+          operations: new Set([event.operation]),
+          lastSeen: event.timestamp,
+        });
+      }
+    });
+
+    return Array.from(tools.values()).sort(
+      (a, b) => b.total - a.total
+    );
+  }, [events]);
+
+const highAnomalyCount =
+  anomalyReport?.anomalies.filter(
+    (anomaly) => anomaly.severity === "HIGH"
+  ).length ?? 0;
+
+const mediumAnomalyCount =
+  anomalyReport?.anomalies.filter(
+    (anomaly) => anomaly.severity === "MEDIUM"
+  ).length ?? 0;
+
   const allowedCount = events.filter(
     (event) => event.decision === "ALLOW"
   ).length;
+
+  const filteredEvents = useMemo(() => {
+  const query = eventSearch.trim().toLowerCase();
+
+  return events.filter((event) => {
+    const matchesDecision =
+      decisionFilter === "ALL" || event.decision === decisionFilter;
+
+    const searchableText = [
+      event.event_id,
+      event.agent_id,
+      event.tool_name,
+      event.operation,
+      event.resource ?? "",
+    ].join(" ").toLowerCase();
+
+    return matchesDecision && searchableText.includes(query);
+  });
+}, [events, eventSearch, decisionFilter]);
+
+const decisionCounts = {
+  ALL: events.length,
+  ALLOW: events.filter((event) => event.decision === "ALLOW").length,
+  BLOCK: events.filter((event) => event.decision === "BLOCK").length,
+  REQUIRE_APPROVAL: events.filter(
+    (event) => event.decision === "REQUIRE_APPROVAL"
+  ).length,
+};
 
   const chartData = useMemo(() => {
     const days = Array.from({ length: 7 }, (_, index) => {
@@ -239,7 +343,7 @@ function App() {
         <div className="workspace-label">WORKSPACE</div>
 
         <nav className="navigation">
-          {navigation.map((item, index) => {
+          {navigation.map((item) => {
             const Icon = item.icon;
 
             return (
@@ -486,10 +590,750 @@ function App() {
       )}
     </section>
   </div>
+) : activeSection === "Threat Detection" ? (
+  <div className="threat-detection-page">
+    <section className="welcome-section">
+      <div>
+        <div className="eyebrow">
+          <span className="eyebrow-line" />
+          BEHAVIORAL THREAT INTELLIGENCE
+        </div>
+        <h2>Threat Detection</h2>
+        <p>Identify suspicious agent behavior and investigate anomalies detected by AEGISGATE.</p>
+      </div>
+      <button className="primary-button" onClick={() => void loadDashboard()} disabled={loading}>
+        <RefreshCw size={17} className={loading ? "spin" : ""} />
+        {loading ? "Refreshing..." : "Refresh Data"}
+      </button>
+    </section>
+
+    <section className="metrics-grid">
+      <article className="metric-card">
+        <div className="metric-top"><span>Total Anomalies</span><div className="metric-icon purple"><ShieldAlert size={19} /></div></div>
+        <div className="metric-value">{anomalyReport?.total_anomalies ?? "—"}</div>
+        <div className="metric-footer">Detected behavioral anomalies</div>
+      </article>
+      <article className="metric-card">
+        <div className="metric-top"><span>High Severity</span><div className="metric-icon red"><CircleAlert size={19} /></div></div>
+        <div className="metric-value danger-text">{highAnomalyCount}</div>
+        <div className="metric-footer">Requires immediate investigation</div>
+      </article>
+      <article className="metric-card">
+        <div className="metric-top"><span>Medium Severity</span><div className="metric-icon purple"><Activity size={19} /></div></div>
+        <div className="metric-value">{mediumAnomalyCount}</div>
+        <div className="metric-footer">Suspicious behavioral patterns</div>
+      </article>
+      <article className="metric-card">
+        <div className="metric-top"><span>Events Analyzed</span><div className="metric-icon cyan"><ScrollText size={19} /></div></div>
+        <div className="metric-value">{anomalyReport?.events_analyzed ?? "—"}</div>
+        <div className="metric-footer">Last {anomalyReport?.monitoring_window_seconds ?? 60} seconds</div>
+      </article>
+    </section>
+
+    <section className="panel events-panel">
+      <div className="panel-header">
+        <div><h3>Detected Security Anomalies</h3><p>Behavioral patterns identified by the AEGISGATE detection engine</p></div>
+        <span className="event-count">{anomalyReport?.total_anomalies ?? 0} ALERTS DETECTED</span>
+      </div>
+
+      {anomalyReport?.anomalies.length ? (
+        <div className="threat-list">
+          {anomalyReport.anomalies.map((anomaly, index) => (
+            <article className="threat-card" key={`${anomaly.agent_id}-${anomaly.anomaly_type}-${index}`}>
+              <div className="threat-card-header">
+                <div className="threat-card-title">
+                  <div className="threat-alert-icon"><ShieldAlert size={21} /></div>
+                  <div><h3>{anomaly.anomaly_type.replaceAll("_", " ")}</h3><span>Agent: {anomaly.agent_id}</span></div>
+                </div>
+                <span className={`severity ${anomaly.severity.toLowerCase()}`}>{anomaly.severity}</span>
+              </div>
+              <p className="threat-explanation">{anomaly.explanation}</p>
+              <div className="threat-details">
+                <div><span>Observed Events</span><strong>{anomaly.count}</strong></div>
+                <div><span>Detection Threshold</span><strong>{anomaly.threshold}</strong></div>
+                <div><span>Severity</span><strong>{anomaly.severity}</strong></div>
+              </div>
+              <div className="threat-evidence">
+                <span>RELATED FORENSIC EVENT IDS</span>
+                <div>{anomaly.event_ids.map((eventId) => <code key={eventId}>{eventId.slice(0, 8)}</code>)}</div>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="empty-events">
+          <CircleCheck size={24} />
+          <span>{loading ? "Analyzing agent behavior..." : "No anomalies detected in the current monitoring window."}</span>
+        </div>
+            )}
+    </section>
+    </div>
+) : activeSection === "Security Events" ? (
+  <div className="security-events-page">
+    <section className="welcome-section">
+      <div>
+        <div className="eyebrow">
+          <span className="eyebrow-line" />
+          DIGITAL FORENSICS & AUDIT
+        </div>
+        <h2>Security Events</h2>
+        <p>
+          Search, filter and investigate security decisions recorded by
+          the AEGISGATE runtime security engine.
+        </p>
+      </div>
+
+      <button
+        className="primary-button"
+        onClick={() => void loadDashboard()}
+        disabled={loading}
+      >
+        <RefreshCw size={17} className={loading ? "spin" : ""} />
+        Refresh Data
+      </button>
+    </section>
+
+    <section className="metrics-grid">
+      {[
+        { label: "Total Events", value: decisionCounts.ALL, color: "cyan" },
+        { label: "Allowed", value: decisionCounts.ALLOW, color: "green" },
+        { label: "Blocked", value: decisionCounts.BLOCK, color: "red" },
+        {
+          label: "Approval Required",
+          value: decisionCounts.REQUIRE_APPROVAL,
+          color: "purple",
+        },
+      ].map((metric) => (
+        <article className="metric-card" key={metric.label}>
+          <div className="metric-top">
+            <span>{metric.label}</span>
+            <div className={`metric-icon ${metric.color}`}>
+              <ScrollText size={19} />
+            </div>
+          </div>
+          <div className="metric-value">{metric.value}</div>
+          <div className="metric-footer">Recorded security decisions</div>
+        </article>
+      ))}
+    </section>
+
+    <section className="panel events-panel">
+      <div className="panel-header">
+        <div>
+          <h3>Forensic Event Explorer</h3>
+          <p>Investigate recorded agent activity and security decisions</p>
+        </div>
+        <span className="event-count">
+          {filteredEvents.length} EVENTS FOUND
+        </span>
+      </div>
+
+      <div className="event-controls">
+        <div className="event-search">
+          <Search size={18} />
+          <input
+            type="text"
+            placeholder="Search agent, tool, operation or event ID..."
+            value={eventSearch}
+            onChange={(e) => setEventSearch(e.target.value)}
+          />
+          {eventSearch && (
+            <button
+              className="clear-search"
+              onClick={() => setEventSearch("")}
+              aria-label="Clear search"
+            >
+              <XCircle size={17} />
+            </button>
+          )}
+        </div>
+
+        <div className="event-filters">
+          {(["ALL", "ALLOW", "BLOCK", "REQUIRE_APPROVAL"] as const).map(
+            (filter) => (
+              <button
+                key={filter}
+                className={`event-filter ${
+                  decisionFilter === filter ? "active" : ""
+                }`}
+                onClick={() => setDecisionFilter(filter)}
+              >
+                {filter === "REQUIRE_APPROVAL"
+                  ? "REQUIRES APPROVAL"
+                  : filter}
+                <span>{decisionCounts[filter]}</span>
+              </button>
+            )
+          )}
+        </div>
+      </div>
+
+      {filteredEvents.length > 0 ? (
+        <div className="events-table-wrapper">
+          <table className="events-table">
+            <thead>
+              <tr>
+                <th>EVENT ID</th>
+                <th>AGENT</th>
+                <th>TOOL / OPERATION</th>
+                <th>DECISION</th>
+                <th>EXECUTION</th>
+                <th>TIMESTAMP</th>
+                <th>INVESTIGATE</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredEvents.map((event) => (
+                <tr key={event.event_id}>
+                  <td>
+                    <span className="event-id">
+                      {event.event_id.slice(0, 8)}
+                    </span>
+                  </td>
+                  <td>{event.agent_id}</td>
+                  <td>
+                    <strong>{event.tool_name}</strong>
+                    <span className="table-subtext">{event.operation}</span>
+                  </td>
+                  <td>
+                    <span
+                      className={`decision-badge ${event.decision.toLowerCase()}`}
+                    >
+                      {event.decision.replaceAll("_", " ")}
+                    </span>
+                  </td>
+                  <td>
+                    {event.executed ? (
+                      <span className="execution-success">
+                        <CircleCheck size={14} /> Executed
+                      </span>
+                    ) : (
+                      <span className="execution-blocked">
+                        <XCircle size={14} /> Not executed
+                      </span>
+                    )}
+                  </td>
+                  <td className="timestamp-cell">
+                    <Clock3 size={13} />
+                    {formatTimestamp(event.timestamp)}
+                  </td>
+                  <td>
+                    <button
+                      className="inspect-event-button"
+                      onClick={() => setSelectedEvent(event)}
+                    >
+                      Inspect <ArrowUpRight size={14} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="empty-events">
+          <Search size={23} />
+          <span>
+            {loading
+              ? "Loading security events..."
+              : "No matching security events found."}
+          </span>
+        </div>
+      )}
+    </section>
+
+    {selectedEvent && (
+      <section
+  ref={detailPanelRef}
+  className="panel event-detail-panel"
+>
+        <div className="panel-header">
+          <div>
+            <h3>Forensic Event Details</h3>
+            <p>Detailed evidence for the selected security event</p>
+          </div>
+          <button
+            className="icon-button"
+            onClick={() => setSelectedEvent(null)}
+            aria-label="Close event details"
+          >
+            <XCircle size={19} />
+          </button>
+        </div>
+
+        <div className="event-detail-grid">
+          <div>
+            <span>EVENT ID</span>
+            <strong>{selectedEvent.event_id}</strong>
+          </div>
+          <div>
+            <span>AGENT ID</span>
+            <strong>{selectedEvent.agent_id}</strong>
+          </div>
+          <div>
+            <span>TOOL</span>
+            <strong>{selectedEvent.tool_name}</strong>
+          </div>
+          <div>
+            <span>OPERATION</span>
+            <strong>{selectedEvent.operation}</strong>
+          </div>
+          <div>
+            <span>RESOURCE</span>
+            <strong>{selectedEvent.resource ?? "Not specified"}</strong>
+          </div>
+          <div>
+            <span>DECISION</span>
+            <strong>{selectedEvent.decision.replaceAll("_", " ")}</strong>
+          </div>
+	  <div className="event-reason">
+            <span>DECISION REASON</span>
+            <strong>{selectedEvent.reason || "No reason recorded"}</strong>
+          </div>
+
+          <div>
+            <span>EXECUTION STATUS</span>
+            <strong>{selectedEvent.executed ? "Executed" : "Not executed"}</strong>
+          </div>
+          <div>
+            <span>TIMESTAMP</span>
+            <strong>{formatTimestamp(selectedEvent.timestamp)}</strong>
+          </div>
+        </div>
+
+        <div className="forensic-hashes">
+          <h4>HASH-CHAIN EVIDENCE</h4>
+          <div>
+            <span>Previous Hash</span>
+            <code>{selectedEvent.previous_hash ?? "No previous hash"}</code>
+          </div>
+          <div>
+            <span>Event Hash</span>
+            <code>{selectedEvent.event_hash ?? "Not available"}</code>
+          </div>
+        </div>
+      </section>
+    )}
+    </div>
+) : activeSection === "Integrity Verification" ? (
+  <div className="integrity-verification-page">
+    <section className="welcome-section">
+      <div>
+        <div className="eyebrow">
+          <span className="eyebrow-line" />
+          DIGITAL FORENSICS & DATA INTEGRITY
+        </div>
+        <h2>Integrity Verification</h2>
+        <p>
+          Verify the integrity of security audit records and detect
+          unauthorized modifications to the forensic hash chain.
+        </p>
+      </div>
+
+      <button
+        className="primary-button"
+        onClick={() => void loadDashboard()}
+        disabled={loading}
+      >
+        <RefreshCw size={17} className={loading ? "spin" : ""} />
+        {loading ? "Verifying..." : "Run Verification"}
+      </button>
+    </section>
+
+    {error && (
+      <div className="connection-error">
+        <CircleAlert size={18} />
+        <div>
+          <strong>Unable to retrieve verification results</strong>
+          <p>{error}</p>
+        </div>
+        <button onClick={() => void loadDashboard()}>Retry</button>
+      </div>
+    )}
+
+    <section className="integrity-status-banner">
+      <div className="integrity-icon">
+        {integrity?.valid ? (
+          <CircleCheck size={28} />
+        ) : (
+          <CircleAlert size={28} />
+        )}
+      </div>
+
+      <div className="integrity-info">
+        <strong>
+          {loading
+            ? "Verification in progress..."
+            : integrity
+              ? integrity.valid
+                ? "Hash Chain Integrity Verified"
+                : "Hash Chain Verification Failed"
+              : "Waiting for verification"}
+        </strong>
+        <span>
+          {integrity?.reason ??
+            "Run verification to inspect the integrity of recorded security events."}
+        </span>
+      </div>
+
+      <div
+        className={`integrity-result ${
+          integrity?.valid ? "verified" : "failed"
+        }`}
+      >
+        {integrity?.valid ? (
+          <CircleCheck size={17} />
+        ) : (
+          <CircleAlert size={17} />
+        )}
+        {integrity
+          ? integrity.valid
+            ? "HASH CHAIN VALID"
+            : "VERIFICATION FAILED"
+          : "NOT CHECKED"}
+      </div>
+    </section>
+
+    <section className="metrics-grid">
+      <article className="metric-card">
+        <div className="metric-top">
+          <span>Verified Events</span>
+          <div className="metric-icon green">
+            <Fingerprint size={19} />
+          </div>
+        </div>
+        <div className="metric-value">
+          {loading ? "..." : integrity?.checked_events ?? "—"}
+        </div>
+        <div className="metric-footer">
+          Events checked through hash-chain verification
+        </div>
+      </article>
+
+      <article className="metric-card">
+        <div className="metric-top">
+          <span>Legacy Events</span>
+          <div className="metric-icon purple">
+            <ScrollText size={19} />
+          </div>
+        </div>
+        <div className="metric-value">
+          {loading ? "..." : integrity?.legacy_events ?? "—"}
+        </div>
+        <div className="metric-footer">
+          Records not covered by cryptographic verification
+        </div>
+      </article>
+
+      <article className="metric-card">
+        <div className="metric-top">
+          <span>Verification Result</span>
+          <div className={`metric-icon ${integrity?.valid ? "green" : "red"}`}>
+            {integrity?.valid ? (
+              <CircleCheck size={19} />
+            ) : (
+              <CircleAlert size={19} />
+            )}
+          </div>
+        </div>
+        <div className="metric-value">
+          {loading ? "..." : integrity ? (integrity.valid ? "Valid" : "Failed") : "—"}
+        </div>
+        <div className="metric-footer">
+          Current audit hash-chain status
+        </div>
+      </article>
+
+      <article className="metric-card">
+        <div className="metric-top">
+          <span>Legacy Coverage</span>
+          <div className="metric-icon cyan">
+            <Shield size={19} />
+          </div>
+        </div>
+        <div className="metric-value">
+          {loading
+            ? "..."
+            : integrity
+              ? integrity.legacy_events_verified
+                ? "Covered"
+                : "Excluded"
+              : "—"}
+        </div>
+        <div className="metric-footer">
+          Cryptographic coverage of legacy records
+        </div>
+      </article>
+    </section>
+
+    <section className="panel integrity-details-panel">
+      <div className="panel-header">
+        <div>
+          <h3>Verification Details</h3>
+          <p>Results returned by the AEGISGATE integrity engine</p>
+        </div>
+        <Fingerprint size={20} className="muted-icon" />
+      </div>
+
+      {integrity ? (
+        <div className="integrity-detail-list">
+          <div>
+            <span>Hash Chain Status</span>
+            <strong className={integrity.valid ? "success-text" : "danger-text"}>
+              {integrity.valid ? "Valid" : "Invalid"}
+            </strong>
+          </div>
+
+          <div>
+            <span>Events Hash-Checked</span>
+            <strong>{integrity.checked_events}</strong>
+          </div>
+
+          <div>
+            <span>Legacy Events</span>
+            <strong>{integrity.legacy_events}</strong>
+          </div>
+
+          <div>
+            <span>Legacy Events Cryptographically Verified</span>
+            <strong>
+              {integrity.legacy_events_verified ? "Yes" : "No"}
+            </strong>
+          </div>
+
+          <div>
+            <span>Failed Event ID</span>
+            <strong className="integrity-event-id">
+              {integrity.failed_event_id ?? "None"}
+            </strong>
+          </div>
+
+          <div>
+            <span>Verification Explanation</span>
+            <strong>{integrity.reason}</strong>
+          </div>
+        </div>
+      ) : (
+        <div className="empty-events">
+          <Fingerprint size={23} />
+          <span>
+            {loading
+              ? "Checking audit record integrity..."
+              : "No verification report available."}
+          </span>
+        </div>
+      )}
+    </section>
+
+    <section className="integrity-explanation">
+      <div className="integrity-explanation-icon">
+        <LockKeyhole size={21} />
+      </div>
+      <div>
+        <h3>Understanding Hash-Chain Verification</h3>
+        <p>
+          AEGISGATE links audit records using cryptographic hashes.
+          Each hashed event contains evidence connected to the previous
+          event. If a covered record is modified, the verification
+          process can detect an integrity failure.
+        </p>
+        <p>
+          Legacy events were recorded before hash-chain protection
+          was introduced. They are not covered by cryptographic
+          integrity verification and should not be treated as
+          verified records.
+        </p>
+      </div>
+    </section>
+
+    <footer className="dashboard-footer">
+      <span>AEGISGATE SECURITY PLATFORM</span>
+      <span>
+        Runtime Protection · Behavioral Analysis · Digital Forensics
+      </span>
+      <span>
+        {lastUpdated
+          ? `Updated ${lastUpdated.toLocaleTimeString()}`
+          : "Waiting for data"}
+      </span>
+    </footer>
+    </div>
+) : activeSection === "Tool Activity" ? (
+  <div className="tool-activity-page">
+    <section className="welcome-section">
+      <div>
+        <div className="eyebrow">
+          <span className="eyebrow-line" />
+          SECURITY OPERATIONS CENTER
+        </div>
+
+        <h2>Tool Activity</h2>
+        <p>
+          Monitor tool usage. Track operations. Control every AI agent action.
+        </p>
+      </div>
+
+      <button
+        className="primary-button"
+        onClick={() => void loadDashboard()}
+        disabled={loading}
+      >
+        <RefreshCw size={17} className={loading ? "spin" : ""} />
+        {loading ? "Refreshing..." : "Refresh Data"}
+        <span className="live-indicator" />
+      </button>
+    </section>
+
+    {error && (
+      <div className="connection-error">
+        <CircleAlert size={18} />
+        <div>
+          <strong>Unable to load tool activity</strong>
+          <p>{error}</p>
+        </div>
+      </div>
+    )}
+
+    <section className="stats-grid">
+      <div className="stat-card">
+        <span className="stat-label">Total Tool Requests</span>
+        <strong className="stat-value">{events.length}</strong>
+        <span className="stat-description">Loaded security events</span>
+      </div>
+
+      <div className="stat-card">
+        <span className="stat-label">Tools Detected</span>
+        <strong className="stat-value">{toolStats.length}</strong>
+        <span className="stat-description">Unique tools in event records</span>
+      </div>
+
+      <div className="stat-card">
+        <span className="stat-label">Blocked Requests</span>
+        <strong className="stat-value">{blockedCount}</strong>
+        <span className="stat-description">Requests denied by policy</span>
+      </div>
+
+      <div className="stat-card">
+        <span className="stat-label">Approval Required</span>
+        <strong className="stat-value">{approvalCount}</strong>
+<span className="stat-description">Requests requiring approval</span>
+      </div>
+    </section>
+
+    <section className="panel tool-activity-panel">
+      <div className="panel-header">
+        <div>
+          <h3>Tool Usage Overview</h3>
+          <p>Activity grouped by tool name</p>
+        </div>
+        <span className="live-badge">LIVE DATA</span>
+      </div>
+
+      {toolStats.length > 0 ? (
+        <div className="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>TOOL</th>
+                <th>REQUESTS</th>
+                <th>ALLOWED</th>
+                <th>BLOCKED</th>
+                <th>APPROVAL</th>
+                <th>EXECUTED</th>
+                <th>OPERATIONS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {toolStats.map((tool) => (
+                <tr key={tool.toolName}>
+                  <td><strong>{tool.toolName}</strong></td>
+                  <td>{tool.total}</td>
+                  <td>{tool.allowed}</td>
+                  <td>{tool.blocked}</td>
+                  <td>{tool.approval}</td>
+                  <td>{tool.executed}</td>
+                  <td>{Array.from(tool.operations).join(", ")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="empty-state">
+          <Terminal size={28} />
+          <h3>No tool activity available</h3>
+          <p>Security events will appear here when agents perform tool requests.</p>
+        </div>
+      )}
+    </section>
+
+    <section className="panel tool-activity-panel">
+      <div className="panel-header">
+        <div>
+          <h3>Recent Tool Operations</h3>
+          <p>Latest actions recorded by the security engine</p>
+        </div>
+        <span className="live-badge">{events.length} EVENTS</span>
+      </div>
+
+      {events.length > 0 ? (
+        <div className="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>AGENT</th>
+                <th>TOOL</th>
+                <th>OPERATION</th>
+                <th>DECISION</th>
+                <th>EXECUTION</th>
+                <th>TIMESTAMP</th>
+              </tr>
+            </thead>
+            <tbody>
+              {events.slice(0, 10).map((event) => (
+                <tr key={event.event_id}>
+                  <td>{event.agent_id}</td>
+                  <td><strong>{event.tool_name}</strong></td>
+                  <td>{event.operation}</td>
+                  <td>
+  <span className={`decision-badge ${event.decision.toLowerCase()}`}>
+    {event.decision}
+  </span>
+</td>
+<td>
+  <span className={event.executed ? "execution-success" : "execution-blocked"}>
+    {event.executed ? "Executed" : "Not executed"}
+  </span>
+</td>
+                  <td>{new Date(event.timestamp).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="empty-state">
+          <p>No recent tool operations recorded.</p>
+        </div>
+      )}
+    </section>
+
+    <footer className="dashboard-footer">
+      <span>AEGISGATE SECURITY PLATFORM</span>
+      <span>
+        Runtime Protection · Behavioral Analysis · Digital Forensics
+      </span>
+      <span>
+        {lastUpdated
+          ? `Updated ${lastUpdated.toLocaleTimeString()}`
+          : "Waiting for data"}
+      </span>
+    </footer>
+  </div>
 ) : (
   <>
-
           <section className="welcome-section">
+
             <div>
               <div className="eyebrow">
                 <span className="eyebrow-line" />
