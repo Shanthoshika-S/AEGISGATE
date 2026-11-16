@@ -180,6 +180,11 @@ button:disabled {
   box-shadow: 0 0 10px rgba(251, 113, 133, 0.55);
 }
 
+.status-dot.partial {
+  background: #fbbf24;
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.6);
+}
+
 .profile {
   display: flex;
   align-items: center;
@@ -2031,4 +2036,12 @@ button:disabled {
     max-width: 100%;
     text-align: left;
   }
+}
+
+.status-heading.partial {
+  color: #fbbf24;
+}
+
+.status-heading.offline {
+  color: #fb7185;
 }

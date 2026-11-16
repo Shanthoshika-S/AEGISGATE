@@ -59,26 +59,81 @@ function App() {
   const [selectedEvent, setSelectedEvent] = useState<SecurityEvent | null>(null);
   const detailPanelRef = useRef<HTMLElement | null>(null);
 
+
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     setError("");
 
     try {
-      const [health, eventData, integrityData, anomalyData] =
-        await Promise.all([
-          api.getHealth(),
-          api.getEvents(100),
-          api.getIntegrity(),
-          api.getAnomalies(),
-        ]);
+      const results = await Promise.allSettled([
+        api.getHealth(),
+        api.getEvents(100),
+        api.getIntegrity(),
+        api.getAnomalies(),
+      ]);
 
-      setBackendOnline(health.status === "healthy");
-      setEvents(eventData.events);
-      setIntegrity(integrityData);
-      setAnomalyReport(anomalyData);
-      setLastUpdated(new Date());
+      const [healthResult, eventsResult, integrityResult, anomalyResult] =
+        results;
+
+      const failures: string[] = [];
+      let receivedData = false;
+
+      const getErrorMessage = (reason: unknown) =>
+        reason instanceof Error ? reason.message : "Request failed";
+
+      // 1. Backend health
+      if (healthResult.status === "fulfilled") {
+        setBackendOnline(healthResult.value.status === "healthy");
+        receivedData = true;
+
+        if (healthResult.value.status !== "healthy") {
+          failures.push("Backend health check reports an unhealthy service.");
+        }
+      } else {
+        setBackendOnline(false);
+        failures.push(
+          `Backend health: ${getErrorMessage(healthResult.reason)}`
+        );
+      }
+
+      // 2. Security events
+      if (eventsResult.status === "fulfilled") {
+        setEvents(eventsResult.value.events);
+        receivedData = true;
+      } else {
+        failures.push(
+          `Security events: ${getErrorMessage(eventsResult.reason)}`
+        );
+      }
+
+      // 3. Audit integrity
+      if (integrityResult.status === "fulfilled") {
+        setIntegrity(integrityResult.value);
+        receivedData = true;
+      } else {
+        failures.push(
+          `Audit integrity: ${getErrorMessage(integrityResult.reason)}`
+        );
+      }
+
+      // 4. Anomaly detection
+      if (anomalyResult.status === "fulfilled") {
+        setAnomalyReport(anomalyResult.value);
+        receivedData = true;
+      } else {
+        failures.push(
+          `Anomaly detection: ${getErrorMessage(anomalyResult.reason)}`
+        );
+      }
+
+      if (receivedData) {
+        setLastUpdated(new Date());
+      }
+
+      if (failures.length > 0) {
+        setError(`Some dashboard data could not be loaded: ${failures.join(" | ")}`);
+      }
     } catch (err) {
-      setBackendOnline(false);
       setError(
         err instanceof Error ? err.message : "Unable to connect to AEGISGATE."
       );
@@ -86,6 +141,7 @@ function App() {
       setLoading(false);
     }
   }, []);
+
 
   useEffect(() => {
     void loadDashboard();
@@ -365,19 +421,41 @@ const decisionCounts = {
   <span>Settings</span>
 </button>
 
-          <div className="system-status">
-            <div className="status-heading">
-              <span
-                className={`status-dot ${backendOnline ? "" : "offline"}`}
-              />
-              {backendOnline ? "SYSTEM OPERATIONAL" : "SYSTEM OFFLINE"}
-            </div>
-            <p>
-              {backendOnline
-                ? "Security gateway is responding"
-                : "Backend connection unavailable"}
-            </p>
-          </div>
+
+<div className="system-status">
+  <div
+  className={`status-heading ${
+    !backendOnline
+      ? "offline"
+      : error
+        ? "partial"
+        : ""
+  }`}
+>
+    <span
+      className={`status-dot ${
+        !backendOnline
+          ? "offline"
+          : error
+            ? "partial"
+            : ""
+      }`}
+    />
+    {!backendOnline
+      ? "SYSTEM OFFLINE"
+      : error
+        ? "PARTIALLY AVAILABLE"
+        : "SYSTEM OPERATIONAL"}
+  </div>
+  <p>
+    {!backendOnline
+      ? "Backend connection unavailable"
+      : error
+        ? "Some security services need attention"
+        : "Security gateway is responding"}
+  </p>
+</div>
+
 
           <div className="profile">
             <div className="avatar">AG</div>
@@ -488,7 +566,7 @@ const decisionCounts = {
         </header>
 
         <div className="dashboard">
-         
+
              {activeSection === "Agent Monitoring" ? (
   <div className="agent-monitoring-page">
     <section className="welcome-section">
