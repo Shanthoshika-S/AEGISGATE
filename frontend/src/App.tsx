@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   Shield,
@@ -22,15 +22,9 @@ import {
   XCircle,
 } from "lucide-react";
 
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-} from "recharts";
+const SecurityActivityChart = lazy(
+  () => import("./components/SecurityActivityChart")
+);
 
 import { api } from "./services/api";
 import type {
@@ -60,6 +54,7 @@ function App() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [activeSection, setActiveSection] = useState("Overview");
   const [eventSearch, setEventSearch] = useState("");
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [decisionFilter, setDecisionFilter] = useState("ALL");
   const [selectedEvent, setSelectedEvent] = useState<SecurityEvent | null>(null);
   const detailPanelRef = useRef<HTMLElement | null>(null);
@@ -362,10 +357,13 @@ const decisionCounts = {
         </nav>
 
         <div className="sidebar-bottom">
-          <button className="nav-item">
-            <Settings size={18} />
-            <span>Settings</span>
-          </button>
+          <button
+  className={`nav-item ${activeSection === "Settings" ? "active" : ""}`}
+  onClick={() => setActiveSection("Settings")}
+>
+  <Settings size={18} />
+  <span>Settings</span>
+</button>
 
           <div className="system-status">
             <div className="status-heading">
@@ -408,17 +406,84 @@ const decisionCounts = {
               {backendOnline ? "BACKEND CONNECTED" : "BACKEND OFFLINE"}
             </div>
 
-            <button className="icon-button" aria-label="Search">
-              <Search size={19} />
-            </button>
-
             <button
-              className="icon-button notification"
-              aria-label="Notifications"
+  className="icon-button"
+  aria-label="Search"
+  onClick={() => setActiveSection("Security Events")}
+>
+  <Search size={19} />
+</button>
+
+            <div className="notification-container">
+  <button
+    className="icon-button notification"
+    aria-label="Notifications"
+    aria-expanded={notificationsOpen}
+    onClick={() => setNotificationsOpen((open) => !open)}
+  >
+    <Bell size={19} />
+    {anomalyReport && anomalyReport.total_anomalies > 0 && <span />}
+  </button>
+
+  {notificationsOpen && (
+    <div className="notification-panel">
+      <div className="notification-header">
+        <div>
+          <h3>Notifications</h3>
+          <p>
+            {anomalyReport?.total_anomalies ?? 0} detected anomalies
+          </p>
+        </div>
+        <button
+          className="notification-close"
+          onClick={() => setNotificationsOpen(false)}
+          aria-label="Close notifications"
+        >
+          <XCircle size={18} />
+        </button>
+      </div>
+
+      {anomalyReport?.anomalies.length ? (
+        <div className="notification-list">
+          {anomalyReport.anomalies.map((anomaly, index) => (
+            <button
+              className="notification-item"
+              key={`${anomaly.agent_id}-${anomaly.anomaly_type}-${index}`}
+              onClick={() => {
+                setActiveSection("Threat Detection");
+                setNotificationsOpen(false);
+              }}
             >
-              <Bell size={19} />
-              {anomalyReport && anomalyReport.total_anomalies > 0 && <span />}
+              <ShieldAlert size={19} />
+              <div>
+                <strong>
+                  {anomaly.anomaly_type.replaceAll("_", " ")}
+                </strong>
+                <span>
+                  {anomaly.agent_id} · {anomaly.count} events
+                </span>
+                <p>{anomaly.explanation}</p>
+                <span className={`severity ${anomaly.severity.toLowerCase()}`}>
+                  {anomaly.severity}
+                </span>
+              </div>
             </button>
+          ))}
+        </div>
+      ) : (
+        <div className="notification-empty">
+          <CircleCheck size={23} />
+          <strong>No new anomalies</strong>
+          <span>
+            {loading
+              ? "Analyzing agent behavior..."
+              : "No anomalies detected in the current monitoring window."}
+          </span>
+        </div>
+      )}
+    </div>
+  )}
+</div>
           </div>
         </header>
 
@@ -1328,7 +1393,126 @@ const decisionCounts = {
           ? `Updated ${lastUpdated.toLocaleTimeString()}`
           : "Waiting for data"}
       </span>
-    </footer>
+        </footer>
+  </div>
+) : activeSection === "Settings" ? (
+  <div className="settings-page">
+    <section className="welcome-section">
+      <div>
+        <div className="eyebrow">
+          <span className="eyebrow-line" />
+          PLATFORM CONFIGURATION
+        </div>
+        <h2>System Settings</h2>
+        <p>
+          View AEGISGATE system status and monitoring information.
+        </p>
+      </div>
+
+      <button
+        className="primary-button"
+        onClick={() => void loadDashboard()}
+        disabled={loading}
+      >
+        <RefreshCw size={17} className={loading ? "spin" : ""} />
+        {loading ? "Refreshing..." : "Refresh System Data"}
+      </button>
+    </section>
+
+    {error && (
+      <div className="connection-error">
+        <CircleAlert size={18} />
+        <div>
+          <strong>Unable to retrieve system information</strong>
+          <p>{error}</p>
+        </div>
+      </div>
+    )}
+
+    <section className="panel settings-panel">
+      <div className="panel-header">
+        <div>
+          <h3>System Status</h3>
+          <p>Current AEGISGATE service information</p>
+        </div>
+        <Activity size={20} className="muted-icon" />
+      </div>
+
+      <div className="integrity-detail-list">
+        <div>
+          <span>Backend Connection</span>
+          <strong className={backendOnline ? "success-text" : "danger-text"}>
+            {backendOnline ? "Connected" : "Offline"}
+          </strong>
+        </div>
+
+        <div>
+          <span>Security Events Loaded</span>
+          <strong>{events.length}</strong>
+        </div>
+
+        <div>
+          <span>Monitoring Window</span>
+          <strong>
+            {anomalyReport?.monitoring_window_seconds ?? "—"} seconds
+          </strong>
+        </div>
+
+        <div>
+          <span>Detected Anomalies</span>
+          <strong>{anomalyReport?.total_anomalies ?? "—"}</strong>
+        </div>
+
+        <div>
+          <span>Audit Integrity</span>
+          <strong className={integrity?.valid ? "success-text" : "danger-text"}>
+            {integrity
+              ? integrity.valid
+                ? "Valid"
+                : "Failed"
+              : "Not checked"}
+          </strong>
+        </div>
+
+        <div>
+          <span>Last Data Refresh</span>
+          <strong>
+            {lastUpdated
+              ? lastUpdated.toLocaleString()
+              : "Not available"}
+          </strong>
+        </div>
+      </div>
+    </section>
+
+    <section className="panel settings-panel">
+      <div className="panel-header">
+        <div>
+          <h3>Platform Information</h3>
+          <p>AEGISGATE security platform details</p>
+        </div>
+        <Shield size={20} className="muted-icon" />
+      </div>
+
+      <div className="integrity-detail-list">
+        <div>
+          <span>Platform</span>
+          <strong>AEGISGATE</strong>
+        </div>
+        <div>
+          <span>Purpose</span>
+          <strong>Runtime Security & Digital Forensics</strong>
+        </div>
+        <div>
+          <span>Security Monitoring</span>
+          <strong>Behavior-based Detection</strong>
+        </div>
+        <div>
+          <span>Audit Protection</span>
+          <strong>Cryptographic Hash Chain</strong>
+        </div>
+      </div>
+    </section>
   </div>
 ) : (
   <>
@@ -1421,108 +1605,16 @@ const decisionCounts = {
 
               <div className="chart-container">
                 {events.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart
-                      data={chartData}
-                      margin={{ top: 12, right: 12, left: -20, bottom: 0 }}
-                    >
-                      <defs>
-                        <linearGradient
-                          id="allowedGradient"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="0%"
-                            stopColor="#22d3ee"
-                            stopOpacity={0.28}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor="#22d3ee"
-                            stopOpacity={0}
-                          />
-                        </linearGradient>
-
-                        <linearGradient
-                          id="blockedGradient"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="0%"
-                            stopColor="#fb7185"
-                            stopOpacity={0.25}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor="#fb7185"
-                            stopOpacity={0}
-                          />
-                        </linearGradient>
-                      </defs>
-
-                      <CartesianGrid
-                        stroke="#263449"
-                        strokeDasharray="4 5"
-                        vertical={false}
-                      />
-
-                      <XAxis
-                        dataKey="date"
-                        tick={{ fill: "#8292a9", fontSize: 12 }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-
-                      <YAxis
-                        allowDecimals={false}
-                        tick={{ fill: "#8292a9", fontSize: 12 }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-
-                      <Tooltip
-                        contentStyle={{
-                          background: "#111d30",
-                          border: "1px solid #293b52",
-                          borderRadius: "10px",
-                          color: "#f1f5f9",
-                        }}
-                      />
-
-                      <Area
-                        type="monotone"
-                        dataKey="allowed"
-                        name="Allowed"
-                        stroke="#22d3ee"
-                        fill="url(#allowedGradient)"
-                        strokeWidth={2}
-                      />
-
-                      <Area
-                        type="monotone"
-                        dataKey="blocked"
-                        name="Blocked"
-                        stroke="#fb7185"
-                        fill="url(#blockedGradient)"
-                        strokeWidth={2}
-                      />
-
-                      <Area
-                        type="monotone"
-                        dataKey="approval"
-                        name="Requires approval"
-                        stroke="#a78bfa"
-                        fill="transparent"
-                        strokeWidth={2}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  <Suspense
+  fallback={
+    <div className="chart-placeholder">
+      <Activity size={26} />
+      <strong>Loading security activity chart...</strong>
+    </div>
+  }
+>
+  <SecurityActivityChart data={chartData} />
+</Suspense>
                 ) : (
                   <div className="chart-placeholder">
                     <Activity size={26} />

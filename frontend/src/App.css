@@ -100,7 +100,7 @@ button:disabled {
 .workspace-label {
   padding: 0 12px 12px;
   color: #62758e;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 1.5px;
 }
@@ -121,7 +121,7 @@ button:disabled {
   border: 1px solid transparent;
   border-radius: 9px;
   text-align: left;
-  font-size: 12px;
+  font-size: 14px;
   transition: 0.2s ease;
 }
 
@@ -154,7 +154,7 @@ button:disabled {
   align-items: center;
   gap: 8px;
   color: #8ce9c0;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.8px;
 }
@@ -162,7 +162,7 @@ button:disabled {
 .system-status p {
   margin: 8px 0 0 15px;
   color: #8193a8;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .status-dot {
@@ -207,13 +207,13 @@ button:disabled {
 }
 
 .profile strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .profile span {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .profile > svg {
@@ -243,7 +243,7 @@ button:disabled {
   align-items: center;
   gap: 11px;
   color: #8292a9;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .breadcrumb-divider {
@@ -304,6 +304,127 @@ button:disabled {
   border-radius: 50%;
   box-shadow: 0 0 8px var(--red);
 }
+
+
+.notification-container {
+  position: relative;
+}
+
+.notification-panel {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  width: 360px;
+  max-width: calc(100vw - 30px);
+  max-height: 430px;
+  overflow-y: auto;
+  z-index: 1000;
+  background: #111d2f;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+}
+
+.notification-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 17px;
+  border-bottom: 1px solid var(--border);
+}
+
+.notification-header h3 {
+  margin: 0;
+  color: #e3edf8;
+  font-size: 15px;
+}
+
+.notification-header p {
+  margin: 5px 0 0;
+  color: #8293aa;
+  font-size: 12px;
+}
+
+.notification-close {
+  display: grid;
+  place-items: center;
+  color: #98a8bd;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.notification-list {
+  display: grid;
+}
+
+.notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 15px 17px;
+  color: #c8d5e6;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.notification-item:hover {
+  background: rgba(34, 211, 238, 0.06);
+}
+
+.notification-item > svg {
+  flex-shrink: 0;
+  color: var(--cyan);
+}
+
+.notification-item strong {
+  display: block;
+  font-size: 13px;
+  text-transform: capitalize;
+}
+
+.notification-item span {
+  display: block;
+  margin-top: 5px;
+  color: #8293aa;
+  font-size: 11px;
+}
+
+.notification-item p {
+  margin: 8px 0;
+  color: #aebed1;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.notification-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding: 30px 20px;
+  color: #8293aa;
+  text-align: center;
+}
+
+.notification-empty svg {
+  color: var(--green);
+}
+
+.notification-empty strong {
+  color: #dce8f5;
+  font-size: 14px;
+}
+
+.notification-empty span {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 
 /* DASHBOARD CONTENT */
 
@@ -443,7 +564,7 @@ button:disabled {
   justify-content: space-between;
   gap: 8px;
   color: #98a8bd;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
 }
 
@@ -487,7 +608,7 @@ button:disabled {
   gap: 6px;
   margin-top: 11px;
   color: #8293aa;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .success-text {
@@ -535,7 +656,7 @@ button:disabled {
 .panel-header p {
   margin: 5px 0 0;
   color: #8394aa;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .chart-live-label,
@@ -544,7 +665,7 @@ button:disabled {
   align-items: center;
   gap: 7px;
   color: #8ce9c0;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.8px;
 }
@@ -578,11 +699,11 @@ button:disabled {
 
 .chart-placeholder strong {
   color: #c8d5e6;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .chart-placeholder span {
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .activity-legend {
@@ -598,7 +719,7 @@ button:disabled {
   align-items: center;
   gap: 7px;
   color: #98a8bd;
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .activity-legend i {
@@ -752,7 +873,7 @@ button:disabled {
   background: rgba(8, 16, 29, 0.55);
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.8px;
 }
@@ -761,7 +882,7 @@ button:disabled {
   padding: 13px 11px;
   color: #c0ccdc;
   border-bottom: 1px solid rgba(148, 172, 205, 0.075);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .events-table tbody tr {
@@ -775,21 +896,21 @@ button:disabled {
 .event-id {
   color: #8ba2bd;
   font-family: monospace;
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .table-subtext {
   display: block;
   margin-top: 4px;
   color: #8293aa;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .decision-badge {
   display: inline-flex;
   padding: 5px 8px;
   border-radius: 5px;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.3px;
 }
@@ -814,7 +935,7 @@ button:disabled {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .execution-success { color: #7ce4b2; }
@@ -822,7 +943,7 @@ button:disabled {
 
 .timestamp-cell {
   color: #8b9bb1 !important;
-  font-size: 9px !important;
+  font-size: 11px !important;
 }
 
 .timestamp-cell svg {
@@ -837,7 +958,7 @@ button:disabled {
   justify-content: center;
   gap: 12px;
   color: #8293aa;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .empty-events svg {
@@ -1873,3 +1994,41 @@ button:disabled {
   }
 }
 
+/* Settings Page */
+
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.settings-panel {
+  padding: 22px;
+}
+
+.settings-panel .integrity-detail-list {
+  margin-top: 18px;
+}
+
+.settings-panel .integrity-detail-list > div {
+  padding: 15px 0;
+}
+
+.settings-panel .integrity-detail-list strong {
+  text-align: right;
+  max-width: 60%;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .settings-panel .integrity-detail-list > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .settings-panel .integrity-detail-list strong {
+    max-width: 100%;
+    text-align: left;
+  }
+}
