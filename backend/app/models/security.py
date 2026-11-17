@@ -45,3 +45,6 @@ class ToolExecutionRequest(AgentToolRequest):
     parameters: dict[str, str | int | float | bool] = Field(
         default_factory=dict
     )
+class AgentTaskRequest(BaseModel):
+    agent_id: str = "demo-agent"
+    task: str = Field(min_length=1, max_length=500)
