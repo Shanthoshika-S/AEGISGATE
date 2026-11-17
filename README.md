@@ -1,12 +1,12 @@
-\# AEGISGATE
+# AEGISGATE
 
 
 
-\### Runtime Security Firewall and Digital Forensics Platform for AI Agents
+### Runtime Security Firewall and Digital Forensics Platform for AI Agents
 
 
 
-\*\*AEGISGATE\*\* is a cybersecurity prototype that demonstrates how tool-using AI agents can be monitored and protected through a centralized runtime security gateway.
+**AEGISGATE** is a cybersecurity prototype that demonstrates how tool-using AI agents can be monitored and protected through a centralized runtime security gateway.
 
 
 
@@ -14,49 +14,49 @@ It evaluates agent tool requests against security policies, controls tool execut
 
 
 
-\*\*Project status:\*\* Working prototype — actively under development.
+**Project status:** Working prototype — actively under development.
 
 
 
-\---
+---
 
 
 
-\## Table of Contents
+## Table of Contents
 
 
 
-\- \[Overview](#overview)
+- [Overview](#overview)
 
-\- \[Key Features](#key-features)
+- [Key Features](#key-features)
 
-\- \[System Architecture](#system-architecture)
+- [System Architecture](#system-architecture)
 
-\- \[Security Decision Model](#security-decision-model)
+- [Security Decision Model](#security-decision-model)
 
-\- \[Agent Demonstration](#agent-demonstration)
+- [Agent Demonstration](#agent-demonstration)
 
-\- \[Audit Logging and Integrity Verification](#audit-logging-and-integrity-verification)
+- [Audit Logging and Integrity Verification](#audit-logging-and-integrity-verification)
 
-\- \[Behavior Analysis](#behavior-analysis)
+- [Behavior Analysis](#behavior-analysis)
 
-\- \[Technology Stack](#technology-stack)
+- [Technology Stack](#technology-stack)
 
-\- \[Project Structure](#project-structure)
+- [Project Structure](#project-structure)
 
-\- \[Getting Started](#getting-started)
+- [Getting Started](#getting-started)
 
-\- \[API Endpoints](#api-endpoints)
+- [API Endpoints](#api-endpoints)
 
-\- \[Testing](#testing)
+- [Testing](#testing)
 
-\- \[Current Limitations](#current-limitations)
+- [Current Limitations](#current-limitations)
 
-\- \[Future Improvements](#future-improvements)
+- [Future Improvements](#future-improvements)
 
 
 
-\## Overview
+## Overview
 
 
 
@@ -76,29 +76,29 @@ Each supported tool request is evaluated by a policy engine before execution. Se
 
 
 
-\## Key Features
+## Key Features
 
 
 
-\- \*\*Runtime Policy Enforcement:\*\* Evaluates agent tool requests and assigns `ALLOW`, `BLOCK`, or `REQUIRE\_APPROVAL` decisions.
+- **Runtime Policy Enforcement:** Evaluates agent tool requests and assigns `ALLOW`, `BLOCK`, or `REQUIRE_APPROVAL` decisions.
 
-\- \*\*Controlled Tool Execution:\*\* Executes permitted operations through a simulated tool environment.
+- **Controlled Tool Execution:** Executes permitted operations through a simulated tool environment.
 
-\- \*\*Agent Demonstration:\*\* Uses task-driven, deterministic tool selection to demonstrate secure agent interactions.
+- **Agent Demonstration:** Uses task-driven, deterministic tool selection to demonstrate secure agent interactions.
 
-\- \*\*Security Audit Logging:\*\* Records security decisions and execution outcomes in an SQLite database.
+- **Security Audit Logging:** Records security decisions and execution outcomes in an SQLite database.
 
-\- \*\*Hash-Chain Integrity Verification:\*\* Uses SHA-256 hashes to verify the integrity of covered audit records.
+- **Hash-Chain Integrity Verification:** Uses SHA-256 hashes to verify the integrity of covered audit records.
 
-\- \*\*Behavior Analysis:\*\* Identifies potentially suspicious activity using predefined detection rules.
+- **Behavior Analysis:** Identifies potentially suspicious activity using predefined detection rules.
 
-\- \*\*Security Dashboard:\*\* Provides a React and TypeScript interface for monitoring agent activity, security events, anomalies, and audit integrity.
+- **Security Dashboard:** Provides a React and TypeScript interface for monitoring agent activity, security events, anomalies, and audit integrity.
 
-\- \*\*API Integration:\*\* Exposes security functionality through a FastAPI backend.
+- **API Integration:** Exposes security functionality through a FastAPI backend.
 
 
 
-\## System Architecture
+## System Architecture
 
 
 
@@ -212,7 +212,7 @@ Each supported tool request is evaluated by a policy engine before execution. Se
 
 
 
-\## Security Decision Model
+## Security Decision Model
 
 
 
@@ -228,7 +228,7 @@ AEGISGATE currently supports three security decisions.
 
 | `BLOCK` | The request violates the security policy and is prevented from executing. |
 
-| `REQUIRE\_APPROVAL` | The request is withheld and requires approval before it could proceed. |
+| `REQUIRE_APPROVAL` | The request is withheld and requires approval before it could proceed. |
 
 
 
@@ -236,11 +236,11 @@ These decisions help demonstrate how security policies can control agent interac
 
 
 
-\*\*Important:\*\* A complete human approval workflow is not implemented yet. `REQUIRE\_APPROVAL` currently prevents execution.
+**Important:** A complete human approval workflow is not implemented yet. `REQUIRE_APPROVAL` currently prevents execution.
 
 
 
-\## Agent Demonstration
+## Agent Demonstration
 
 
 
@@ -264,9 +264,9 @@ Example tasks:
 
 | Read a sample file | File Reader | `ALLOW` |
 
-| Write a file | File Writer | `REQUIRE\_APPROVAL` |
+| Write a file | File Writer | `REQUIRE_APPROVAL` |
 
-| Execute a shell command | File Reader | `BLOCK` |
+| Execute a shell command | `execute_shell` | `BLOCK` |
 
 
 
@@ -274,7 +274,7 @@ The current agent is rule-based. It is not yet integrated with an external large
 
 
 
-\## Audit Logging and Integrity Verification
+## Audit Logging and Integrity Verification
 
 
 
@@ -294,23 +294,23 @@ The verification report includes:
 
 
 
-\- Hash-chain validity.
+- Hash-chain validity.
 
-\- Number of events checked.
+- Number of events checked.
 
-\- Number of legacy events.
+- Number of legacy events.
 
-\- Whether legacy events are covered by cryptographic verification.
+- Whether legacy events are covered by cryptographic verification.
 
-\- Failed event identification, when applicable.
-
-
-
-\*\*Legacy records:\*\* Events recorded before hash-chain protection was introduced are excluded from cryptographic verification. They are reported separately and should not be considered cryptographically verified.
+- Failed event identification, when applicable.
 
 
 
-\## Behavior Analysis
+**Legacy records:** Events recorded before hash-chain protection was introduced are excluded from cryptographic verification. They are reported separately and should not be considered cryptographically verified.
+
+
+
+## Behavior Analysis
 
 
 
@@ -322,13 +322,13 @@ Current detection rules include:
 
 
 
-\- Excessive activity within a short time window.
+- Excessive activity within a short time window.
 
-\- Repeated blocked requests.
+- Repeated blocked requests.
 
-\- Unusual tool diversity.
+- Unusual tool diversity.
 
-\- Repeated sensitive operations requiring approval.
+- Repeated sensitive operations requiring approval.
 
 
 
@@ -336,7 +336,7 @@ The analyzer uses predefined demonstration thresholds. It is not currently a mac
 
 
 
-\## Technology Stack
+## Technology Stack
 
 
 
@@ -368,7 +368,7 @@ The analyzer uses predefined demonstration thresholds. It is not currently a mac
 
 
 
-\## Project Structure
+## Project Structure
 
 
 
@@ -390,13 +390,13 @@ AEGISGATE/
 
 │   │   ├── services/
 
-│   │   │   ├── agent\_runner.py
+│   │   │   ├── agent_runner.py
 
-│   │   │   ├── audit\_logger.py
+│   │   │   ├── audit_logger.py
 
-│   │   │   ├── behavior\_analyzer.py
+│   │   │   ├── behavior_analyzer.py
 
-│   │   │   └── policy\_engine.py
+│   │   │   └── policy_engine.py
 
 │   │   ├── tools/
 
@@ -408,17 +408,17 @@ AEGISGATE/
 
 │   ├── tests/
 
-│   │   ├── test\_agent\_runner.py
+│   │   ├── test_agent_runner.py
 
-│   │   ├── test\_audit\_logger.py
+│   │   ├── test_audit_logger.py
 
-│   │   ├── test\_behavior\_analyzer.py
+│   │   ├── test_behavior_analyzer.py
 
-│   │   ├── test\_policy\_engine.py
+│   │   ├── test_policy_engine.py
 
-│   │   ├── test\_security\_api.py
+│   │   ├── test_security_api.py
 
-│   │   └── test\_tool\_gateway.py
+│   │   └── test_tool_gateway.py
 
 │   │
 
@@ -456,23 +456,23 @@ AEGISGATE/
 
 
 
-\## Getting Started
+## Getting Started
 
 
 
-\### Prerequisites
+### Prerequisites
 
 
 
-\- Python 3.12 (tested environment)
+- Python 3.12 (tested environment)
 
-\- Node.js and npm
+- Node.js and npm
 
-\- Git
+- Git
 
 
 
-\### 1. Clone the Repository
+### 1. Clone the Repository
 
 
 
@@ -486,7 +486,7 @@ cd AEGISGATE
 
 
 
-\### 2. Set Up the Backend
+### 2. Set Up the Backend
 
 
 
@@ -524,15 +524,15 @@ The backend API will be available at:
 
 
 
-\- API: http://localhost:8000
+- API: http://localhost:8000
 
-\- Interactive API documentation: http://localhost:8000/docs
+- Interactive API documentation: http://localhost:8000/docs
 
-\- Health check: http://localhost:8000/health
+- Health check: http://localhost:8000/health
 
 
 
-\### 3. Set Up the Frontend
+### 3. Set Up the Frontend
 
 
 
@@ -542,7 +542,7 @@ Open another terminal:
 
 ```bash
 
-cd AEGISGATE/frontend
+cd ~/AEGISGATE/frontend
 
 npm install
 
@@ -564,7 +564,7 @@ Keep both development servers running while using the dashboard.
 
 
 
-\## API Endpoints
+## API Endpoints
 
 
 
@@ -590,7 +590,7 @@ Keep both development servers running while using the dashboard.
 
 
 
-\## Testing
+## Testing
 
 
 
@@ -610,7 +610,7 @@ python -m pytest -v
 
 
 
-The backend test suite has previously passed \*\*30 tests\*\*.
+The backend test suite has previously passed **30 tests**.
 
 
 
@@ -618,7 +618,7 @@ The tests cover the agent runner, audit logger, behavior analyzer, policy engine
 
 
 
-\## Current Limitations
+## Current Limitations
 
 
 
@@ -630,43 +630,43 @@ Current limitations include:
 
 
 
-\- The demonstration agent uses deterministic rules rather than a real LLM.
+- The demonstration agent uses deterministic rules rather than a real LLM.
 
-\- Tool execution uses a simulated environment rather than unrestricted real-world tools.
+- Tool execution uses a simulated environment rather than unrestricted real-world tools.
 
-\- A complete human approval workflow is not implemented.
+- A complete human approval workflow is not implemented.
 
-\- Behavior analysis uses predefined rules rather than machine learning.
+- Behavior analysis uses predefined rules rather than machine learning.
 
-\- Authentication and production deployment hardening remain future improvements.
+- Authentication and production deployment hardening remain future improvements.
 
-\- Legacy audit records created before hash-chain protection are excluded from cryptographic verification.
-
-
-
-\## Future Improvements
+- Legacy audit records created before hash-chain protection are excluded from cryptographic verification.
 
 
 
-\- Integrate a real LLM-powered agent.
-
-\- Implement a human-in-the-loop approval workflow.
-
-\- Improve agent behavior monitoring and anomaly detection.
-
-\- Introduce authentication and role-based access control.
-
-\- Expand tool monitoring and security policies.
-
-\- Improve deployment security and production readiness.
+## Future Improvements
 
 
 
-\## Author
+- Integrate a real LLM-powered agent.
+
+- Implement a human-in-the-loop approval workflow.
+
+- Improve agent behavior monitoring and anomaly detection.
+
+- Introduce authentication and role-based access control.
+
+- Expand tool monitoring and security policies.
+
+- Improve deployment security and production readiness.
 
 
 
-\*\*Shanthoshika S.\*\*
+## Author
+
+
+
+**Shanthoshika S.**
 
 
 
@@ -676,16 +676,16 @@ Sri Lanka Institute of Information Technology (SLIIT)
 
 
 
-\## Repository
+## Repository
 
 
 
-\[AEGISGATE on GitHub](https://github.com/Shanthoshika-S/AEGISGATE)
+[AEGISGATE on GitHub](https://github.com/Shanthoshika-S/AEGISGATE)
 
 
 
-\---
+---
 
 
 
-\*AEGISGATE is an educational cybersecurity project exploring runtime security controls, policy enforcement, and digital forensics for AI agent systems.\*
+*AEGISGATE is an educational cybersecurity project exploring runtime security controls, policy enforcement, and digital forensics for AI agent systems.*
